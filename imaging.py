@@ -94,13 +94,25 @@ class Palette:
             result.append([(color[0] + element) % 1, color[1], color[2]]) 
         return result
 
-def display_color(colors, size=100):
-    display = Image.new("RGB", (size, size))
+def display_color(colors, size=(100, 100)):
+    display = Image.new("RGB", size)
     display_pixmap = display.load()
     for x in range(100):
         for y in range(100):
             display_pixmap[x, y] = colors
     display.show()
+
+def generate_color_panes(colors, size=(640, 360)):
+    display = Image.new("RGB", size)
+    display_pixmap = display.load()
+    num_colors = len(colors)
+    bar_width = int(size[0] / num_colors)
+    for i in range(num_colors):
+        for x in range((i * bar_width), ((i+1) * bar_width)):
+            for y in range(size[1]):
+                display_pixmap[x, y] = colors[i]
+    return display
+
 
 # Currently does every third pixel, for speed
 def compute_pop_map(image):
@@ -171,13 +183,15 @@ stat = ImageStat.Stat(im)
 
 # find bucketed colors, in order of popularity
 computation = compute_pop_map(im)
-print computation
 conversion = map_to_hsv(computation)
-print conversion
 cp_color = find_colorful_popular(conversion, stat.count[0])
 
 pal = Palette()
-colorscheme = pal.produce_colors(cp_color, "ACC_ANALOG")
+idealscheme = pal.produce_colors(cp_color, "ACC_ANALOG")
+colorscheme = []
 
-for color in colorscheme:
-    display_color(convert_to_rgb(find_close_popular(conversion, stat.count[0], color[0])))
+for color in idealscheme:
+    colorscheme.append(convert_to_rgb(find_close_popular(conversion, stat.count[0], color[0])))
+
+panes = generate_color_panes(colorscheme)
+panes.show()
