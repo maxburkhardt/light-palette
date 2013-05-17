@@ -21,6 +21,11 @@ class PriorityMap:
                 inserted = True
         if inserted == False:
             self.data.append((value, item))
+    def remove(self, value):
+        for i in range(len(self.data)):
+            if self.data[i][1] == value:
+                del self.data[i]
+                return
     def pop(self):
         return self.data.pop(0)
 
@@ -149,11 +154,33 @@ def find_hue_difference(color1, color2):
     diff = greater - smaller
     return min(diff, 1-diff)
 
-# Given a PriorityMap of HSV colors, find one that is both bright and popular
+# Given a PriorityMap of HSV colors, find one that is both colorful (saturated) and popular
 def find_colorful_popular(colormap, total_pixels, bright_weight=0.5, pop_weight=0.5):
     best_so_far = (0, None)
     for color in colormap.data:
         bright_score = color[1][1]
+        pop_score = color[0] / total_pixels
+        total_score = (bright_score * bright_weight) + (pop_score * pop_weight)
+        if total_score > best_so_far[0]:
+            best_so_far = (total_score, color[1])
+    return best_so_far[1]
+
+# Given a PriorityMap of HSV colors, find one that is both bright and popular
+def find_bright_popular(colormap, total_pixels, bright_weight=0.5, pop_weight=0.5):
+    best_so_far = (0, None)
+    for color in colormap.data:
+        bright_score = color[1][2]
+        pop_score = color[0] / total_pixels
+        total_score = (bright_score * bright_weight) + (pop_score * pop_weight)
+        if total_score > best_so_far[0]:
+            best_so_far = (total_score, color[1])
+    return best_so_far[1]
+
+# Given a PriorityMap of HSV colors, find one that is both dark and popular
+def find_dark_popular(colormap, total_pixels, bright_weight=0.5, pop_weight=0.5):
+    best_so_far = (0, None)
+    for color in colormap.data:
+        bright_score = 1 - color[1][2]
         pop_score = color[0] / total_pixels
         total_score = (bright_score * bright_weight) + (pop_score * pop_weight)
         if total_score > best_so_far[0]:
@@ -171,6 +198,16 @@ def find_close_popular(colormap, total_pixels, target_hue, close_weight=0.5, pop
             best_so_far = (total_score, color[1])
     return best_so_far[1]
 
+# Given a PriorityMap of HSV colors, find their average value
+def find_average_value(colormap):
+    total = 0.0
+    count = len(colormap.data)
+    for color in colormap.data:
+        total += color[1][2]
+    avg = total / count
+    print "Average value is", avg
+    return avg
+
 def display_top_colors(count, colormap):
     for i in range(count):
         display_color(tuple(colormap.data[i][1]))
@@ -187,11 +224,19 @@ conversion = map_to_hsv(computation)
 cp_color = find_colorful_popular(conversion, stat.count[0])
 
 pal = Palette()
-idealscheme = pal.produce_colors(cp_color, "ACC_ANALOG")
+idealscheme = pal.produce_colors(cp_color, "TRIAD")
 colorscheme = []
 
 for color in idealscheme:
-    colorscheme.append(convert_to_rgb(find_close_popular(conversion, stat.count[0], color[0])))
+    match = find_close_popular(conversion, stat.count[0], color[0])
+    conversion.remove(match)
+    colorscheme.append(convert_to_rgb(match))
+        
+if cp_color[2] > 0.7:
+    colorscheme.append(convert_to_rgb(find_dark_popular(conversion, stat.count[0])))
+else:
+    colorscheme.append(convert_to_rgb(find_bright_popular(conversion, stat.count[0])))
+
 
 panes = generate_color_panes(colorscheme)
 panes.show()
