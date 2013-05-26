@@ -156,7 +156,7 @@ class ColorUtil:
 class ColorFinder:
 
     def __init__(self, image):
-        stat = ImageStat.Stat(im)
+        stat = ImageStat.Stat(image)
         self.pixel_count = stat.count[0]
         self.computation = self.compute_pop_map(image)
         self.conversion = ColorUtil.map_to_hsv(self.computation)
@@ -168,12 +168,12 @@ class ColorFinder:
         width = image.size[0]
         height = image.size[1]
         x = 0
-        while x < width - (width % 3):
+        while x < width - (width % 5):
             y = 0
-            while y < height - (height % 3):
+            while y < height - (height % 5):
                 pop.add(pixmap[x,y])
-                y += 3
-            x += 3
+                y += 5
+            x += 5
         return pop.compute()
 
     # generic function to find something that is both <quality> and popular
