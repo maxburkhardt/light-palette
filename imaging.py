@@ -244,10 +244,11 @@ class ColorQualities:
     def close(target):
         return lambda x: 1- ColorUtil.find_hue_difference(target, x[1][0])
 
-path = sys.argv[1]
-im = Image.open(path)
-cf = ColorFinder(im)
-top = ColorUtil.generate_color_panes(tuple(cf.strategy_top_colors(4)))
-top.show()
-et = ColorUtil.generate_color_panes(tuple(cf.strategy_enhanced_triad()))
-et.show()
+if __name__ == "__main__":
+    path = sys.argv[1]
+    im = Image.open(path)
+    cf = ColorFinder(im)
+    top = ColorUtil.generate_color_panes(tuple(cf.strategy_top_colors(4)))
+    top.show()
+    et = ColorUtil.generate_color_panes(tuple(cf.strategy_enhanced_triad()))
+    et.show()
