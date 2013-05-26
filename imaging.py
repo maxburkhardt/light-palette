@@ -245,10 +245,17 @@ class ColorQualities:
         return lambda x: 1- ColorUtil.find_hue_difference(target, x[1][0])
 
 if __name__ == "__main__":
+    # load an image
     path = sys.argv[1]
     im = Image.open(path)
+    # display the image at a reasonable resolution
+    new_height = int((640.0 / im.size[0]) * im.size[1])
+    smaller = im.resize((640, new_height))
+    smaller.show()
     cf = ColorFinder(im)
+    # display palette of top 4 colors
     top = ColorUtil.generate_color_panes(tuple(cf.strategy_top_colors(4)))
     top.show()
+    # use the Enhanced Triad heuristic to display a palette
     et = ColorUtil.generate_color_panes(tuple(cf.strategy_enhanced_triad()))
     et.show()
