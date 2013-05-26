@@ -1,0 +1,5 @@
+session.secret
+client_secrets.json
+*.pyc
+*.gif
+*.jpg

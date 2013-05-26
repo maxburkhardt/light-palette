@@ -1,0 +1,20 @@
+<!doctype html>
+{% autoescape true %}
+<html>
+    <head>
+        <title>Light Palette</title>
+    </head>
+    <body>
+        <p>
+            Hello, <em>{{ userId }}</em>.
+        </p>
+        <p>
+            {{ message }}
+        <p>
+            <form action="/" method="post" enctype="multipart/form-data">
+                <input type="file" name="image" />
+                <input type="submit" value="submit" />
+            </form>
+    </body>
+</html>
+{% endautoescape %}
