@@ -9,8 +9,11 @@ import math
 # Provide a value and some data to the add function, and the item will be inserted in to the structure
 # Structure is always kept in order according to the first value in each tuple
 class PriorityMap:
-    def __init__(self):
-        self.data = []
+    def __init__(self, data=None):
+        if data == None:
+            self.data = []
+        else:
+            self.data = data
     def __str__(self):
         return str(self.data)
     def add(self, value, item):
@@ -28,6 +31,8 @@ class PriorityMap:
                 return
     def pop(self):
         return self.data.pop(0)
+    def pm_copy(self):
+        return PriorityMap(list(self.data))
 
 
 # Class to keep track of buckets of colors
@@ -99,144 +104,150 @@ class Palette:
             result.append([(color[0] + element) % 1, color[1], color[2]]) 
         return result
 
-def display_color(colors, size=(100, 100)):
-    display = Image.new("RGB", size)
-    display_pixmap = display.load()
-    for x in range(100):
-        for y in range(100):
-            display_pixmap[x, y] = colors
-    display.show()
 
-def generate_color_panes(colors, size=(640, 360)):
-    display = Image.new("RGB", size)
-    display_pixmap = display.load()
-    num_colors = len(colors)
-    bar_width = int(size[0] / num_colors)
-    for i in range(num_colors):
-        for x in range((i * bar_width), ((i+1) * bar_width)):
-            for y in range(size[1]):
-                display_pixmap[x, y] = colors[i]
-    return display
+class ColorUtil:
+    @staticmethod
+    def convert_to_hsv(color):
+        return colorsys.rgb_to_hsv(color[0]/256.0, color[1]/256.0, color[2]/256.0)
 
+    @staticmethod
+    def convert_to_rgb(color):
+        reverted = colorsys.hsv_to_rgb(color[0], color[1], color[2])
+        return (int(reverted[0] * 256), int(reverted[1] * 256), int(reverted[2] * 256))
 
-# Currently does every third pixel, for speed
-def compute_pop_map(image):
-    pop = PopMap()
-    pixmap = image.load()
-    width = image.size[0]
-    height = image.size[1]
-    x = 0
-    while x < width - (width % 3):
-        y = 0
-        while y < height - (height % 3):
-            pop.add(pixmap[x,y])
-            y += 3
-        x += 3
-    return pop.compute()
+    @staticmethod
+    def map_to_hsv(colormap):
+        priori = PriorityMap()
+        for item in colormap.data:
+            priori.add(item[0], ColorUtil.convert_to_hsv(tuple(item[1])))
+        return priori
 
-def convert_to_hsv(color):
-    return colorsys.rgb_to_hsv(color[0]/256.0, color[1]/256.0, color[2]/256.0)
+    @staticmethod
+    def display_color(colors, size=(100, 100)):
+        display = Image.new("RGB", size)
+        display_pixmap = display.load()
+        for x in range(100):
+            for y in range(100):
+                display_pixmap[x, y] = colors
+        display.show()
+    
+    @staticmethod
+    def generate_color_panes(colors, size=(640, 360)):
+        display = Image.new("RGB", size)
+        display_pixmap = display.load()
+        num_colors = len(colors)
+        bar_width = int(size[0] / num_colors)
+        for i in range(num_colors):
+            for x in range((i * bar_width), ((i+1) * bar_width)):
+                for y in range(size[1]):
+                    display_pixmap[x, y] = colors[i]
+        return display
 
-def convert_to_rgb(color):
-    reverted = colorsys.hsv_to_rgb(color[0], color[1], color[2])
-    return (int(reverted[0] * 256), int(reverted[1] * 256), int(reverted[2] * 256))
+    # Given two HSV colors, find their difference in hues
+    @staticmethod
+    def find_hue_difference(color1, color2):
+        greater = max(color1, color2)
+        smaller = min(color1, color2)
+        diff = greater - smaller
+        return min(diff, 1-diff)
 
-def map_to_hsv(colormap):
-    priori = PriorityMap()
-    for item in colormap.data:
-        priori.add(item[0], convert_to_hsv(tuple(item[1])))
-    return priori
+# Class to do the magic
+# Takes a PIL Image object
+class ColorFinder:
 
-# Given two HSV colors, find their difference in hues
-def find_hue_difference(color1, color2):
-    greater = max(color1, color2)
-    smaller = min(color1, color2)
-    diff = greater - smaller
-    return min(diff, 1-diff)
+    def __init__(self, image):
+        stat = ImageStat.Stat(im)
+        self.pixel_count = stat.count[0]
+        self.computation = self.compute_pop_map(image)
+        self.conversion = ColorUtil.map_to_hsv(self.computation)
 
-# Given a PriorityMap of HSV colors, find one that is both colorful (saturated) and popular
-def find_colorful_popular(colormap, total_pixels, bright_weight=0.5, pop_weight=0.5):
-    best_so_far = (0, None)
-    for color in colormap.data:
-        bright_score = color[1][1]
-        pop_score = color[0] / total_pixels
-        total_score = (bright_score * bright_weight) + (pop_score * pop_weight)
-        if total_score > best_so_far[0]:
-            best_so_far = (total_score, color[1])
-    return best_so_far[1]
+    # Currently does every third pixel, for speed
+    def compute_pop_map(self, image):
+        pop = PopMap()
+        pixmap = image.load()
+        width = image.size[0]
+        height = image.size[1]
+        x = 0
+        while x < width - (width % 3):
+            y = 0
+            while y < height - (height % 3):
+                pop.add(pixmap[x,y])
+                y += 3
+            x += 3
+        return pop.compute()
 
-# Given a PriorityMap of HSV colors, find one that is both bright and popular
-def find_bright_popular(colormap, total_pixels, bright_weight=0.5, pop_weight=0.5):
-    best_so_far = (0, None)
-    for color in colormap.data:
-        bright_score = color[1][2]
-        pop_score = color[0] / total_pixels
-        total_score = (bright_score * bright_weight) + (pop_score * pop_weight)
-        if total_score > best_so_far[0]:
-            best_so_far = (total_score, color[1])
-    return best_so_far[1]
+    # generic function to find something that is both <quality> and popular
+    # quality should be a lambda that takes a color and outputs a value between 0 and 1
+    # 1 being the best, 0 being the worst
+    # example to find something bright & popular:
+    # find_quality_popular(colormap, lambda x: x[1][2])
+    # example to find something close & popular:
+    # find_quality_popular(colormap, lambda x: 1- ColorUtil.find_hue_difference(target_hue, x[1][0])
+    def find_quality_popular(self, quality, colormap=None, qual_weight=0.5, pop_weight=0.5):
+        if colormap == None:
+            colormap = self.conversion
+        best_so_far = (0, None)
+        for color in colormap.data:
+            qual_score = quality(color)
+            pop_score = color[0] / self.pixel_count
+            total_score = (qual_score * qual_weight) + (pop_score * pop_weight)
+            if total_score > best_so_far[0]:
+                best_so_far = (total_score, color[1])
+        return best_so_far[1]
 
-# Given a PriorityMap of HSV colors, find one that is both dark and popular
-def find_dark_popular(colormap, total_pixels, bright_weight=0.5, pop_weight=0.5):
-    best_so_far = (0, None)
-    for color in colormap.data:
-        bright_score = 1 - color[1][2]
-        pop_score = color[0] / total_pixels
-        total_score = (bright_score * bright_weight) + (pop_score * pop_weight)
-        if total_score > best_so_far[0]:
-            best_so_far = (total_score, color[1])
-    return best_so_far[1]
+    # finds the top colors in the colormap
+    def strategy_top_colors(self, count, colormap=None):
+        if colormap == None:
+            colormap = self.computation
+        returnable = []
+        for i in range(count):
+            returnable.append(tuple(colormap.data[i][1]))
+        return returnable
 
-# Given a PriorityMap of HSV colors and a target hue, find one that is both close and popular
-def find_close_popular(colormap, total_pixels, target_hue, close_weight=0.5, pop_weight=0.5):
-    best_so_far = (0, None)
-    for color in colormap.data:
-        close_score = 1 - find_hue_difference(target_hue, color[1][0])
-        pop_score = color[0] / total_pixels
-        total_score = (close_score * close_weight) + (pop_score * pop_weight)
-        if total_score > best_so_far[0]:
-            best_so_far = (total_score, color[1])
-    return best_so_far[1]
+    def strategy_enhanced_triad(self, colormap=None):
+        if colormap == None:
+            colormap = self.conversion
+        copied = colormap.pm_copy()
+        cp_color = self.find_quality_popular(ColorQualities.colorful())
 
-# Given a PriorityMap of HSV colors, find their average value
-def find_average_value(colormap):
-    total = 0.0
-    count = len(colormap.data)
-    for color in colormap.data:
-        total += color[1][2]
-    avg = total / count
-    print "Average value is", avg
-    return avg
+        pal = Palette()
+        idealscheme = pal.produce_colors(cp_color, "TRIAD")
+        colorscheme = []
+        
+        for color in idealscheme:
+            match = self.find_quality_popular(ColorQualities.close(color[0]), colormap=copied)
+            copied.remove(match)
+            colorscheme.append(ColorUtil.convert_to_rgb(match))
+                
+        if cp_color[2] > 0.7:
+            colorscheme.append(ColorUtil.convert_to_rgb(self.find_quality_popular(ColorQualities.dark(), colormap=copied)))
+        else:
+            colorscheme.append(ColorUtil.convert_to_rgb(self.find_quality_popular(ColorQualities.bright(), colormap=copied)))
+        return colorscheme
 
-def display_top_colors(count, colormap):
-    for i in range(count):
-        display_color(tuple(colormap.data[i][1]))
+# returns lambdas to be used with ColorFinder.find_quality_popular
+class ColorQualities:
 
+    @staticmethod
+    def colorful():
+        return lambda x: x[1][1]
 
-# open up the image
+    @staticmethod
+    def bright():
+        return lambda x: x[1][2]
+
+    @staticmethod
+    def dark():
+        return lambda x: 1 - x[1][2]
+
+    @staticmethod
+    def close(target):
+        return lambda x: 1- ColorUtil.find_hue_difference(target, x[1][0])
+
 path = sys.argv[1]
 im = Image.open(path)
-stat = ImageStat.Stat(im)
-
-# find bucketed colors, in order of popularity
-computation = compute_pop_map(im)
-conversion = map_to_hsv(computation)
-cp_color = find_colorful_popular(conversion, stat.count[0])
-
-pal = Palette()
-idealscheme = pal.produce_colors(cp_color, "TRIAD")
-colorscheme = []
-
-for color in idealscheme:
-    match = find_close_popular(conversion, stat.count[0], color[0])
-    conversion.remove(match)
-    colorscheme.append(convert_to_rgb(match))
-        
-if cp_color[2] > 0.7:
-    colorscheme.append(convert_to_rgb(find_dark_popular(conversion, stat.count[0])))
-else:
-    colorscheme.append(convert_to_rgb(find_bright_popular(conversion, stat.count[0])))
-
-
-panes = generate_color_panes(colorscheme)
-panes.show()
+cf = ColorFinder(im)
+top = ColorUtil.generate_color_panes(tuple(cf.strategy_top_colors(4)))
+top.show()
+et = ColorUtil.generate_color_panes(tuple(cf.strategy_enhanced_triad()))
+et.show()
