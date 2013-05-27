@@ -25,6 +25,7 @@ import webapp2
 
 from google.appengine.api import memcache
 from google.appengine.api import urlfetch
+from google.appengine.api import users
 
 import httplib2
 from apiclient import errors
@@ -33,6 +34,7 @@ from apiclient.http import BatchHttpRequest
 from oauth2client.appengine import StorageByKeyName
 
 from model import Credentials
+from model import Picture
 import util
 
 jinja_environment = jinja2.Environment(                                                                                                                                                                                                                                                                                        
@@ -67,9 +69,13 @@ class MainHandler(webapp2.RequestHandler):
   def _render_template(self, message=None):
     # too fancy for now
     # """Render the main page template."""
-    template_values = {'userId': self.userid}
     if message:
        template_values['message'] = message
+
+    pictures_query = Picture.query(ancestor=Picture.picture_key(str(self.userid))).order(-Picture.date)
+    pictures = pictures_query.fetch(10) 
+
+    template_values = {'userId': self.userid, 'pictures': pictures}
     # # self.mirror_service is initialized in util.auth_required.
     # try:
     #   template_values['contact'] = self.mirror_service.contacts().get(

@@ -33,13 +33,9 @@ from model import Picture
 import util
 import Image
 import imaging
-from google.appengine.ext import ndb
 from google.appengine.ext import blobstore
 from google.appengine.api import files
-from google.appengine.api import users
 
-def picture_key(username):
-    return ndb.Key("Picture", username)
 
 class NotifyHandler(webapp2.RequestHandler):
   """Request Handler for notification pings."""
@@ -75,8 +71,6 @@ class NotifyHandler(webapp2.RequestHandler):
     """Handle timeline notification."""
     for user_action in data.get('userActions', []):
       if user_action.get('type') == 'SHARE':
-        g_user = users.get_current_user()
-        logging.info("User is " + str(g_user))
         # Fetch the timeline item.
         item = self.mirror_service.timeline().get(id=data['itemId']).execute()
         attachments = item.get('attachments', [])
@@ -100,7 +94,7 @@ class NotifyHandler(webapp2.RequestHandler):
             contents_copy = io.BytesIO(output.getvalue())
             output.close()
 
-            upload = Picture(parent=picture_key(data['userToken']))
+            upload = Picture(parent=Picture.picture_key(str(data['userToken'])))
             upload.owner = str(data['userToken'])
             file_name = files.blobstore.create(mime_type='image/jpeg')
             with files.open(file_name, 'a') as f:

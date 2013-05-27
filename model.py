@@ -30,6 +30,10 @@ class Picture(ndb.Model):
     palette = ndb.StringProperty(indexed=False)
     date = ndb.DateTimeProperty(auto_now_add=True)
 
+    @staticmethod
+    def picture_key(username):
+        return ndb.Key("Picture", username)
+
 class Credentials(db.Model):
   """Datastore entity for storing OAuth2.0 credentials.
 
