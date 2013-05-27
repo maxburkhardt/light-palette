@@ -18,9 +18,17 @@ __author__ = 'alainv@google.com (Alain Vongsouvanh)'
 
 
 from google.appengine.ext import db
+from google.appengine.ext import ndb
 
 from oauth2client.appengine import CredentialsProperty
 
+
+class Picture(ndb.Model):
+    """ Models an uploaded picture and a generated palette."""
+    owner = ndb.StringProperty()
+    picture = ndb.StringProperty(indexed=False)
+    palette = ndb.StringProperty(indexed=False)
+    date = ndb.DateTimeProperty(auto_now_add=True)
 
 class Credentials(db.Model):
   """Datastore entity for storing OAuth2.0 credentials.

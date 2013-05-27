@@ -1,3 +1,4 @@
+from __future__ import with_statement
 # Copyright (C) 2013 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +18,7 @@
 __author__ = 'alainv@google.com (Alain Vongsouvanh)'
 
 
+
 import io
 import StringIO
 import json
@@ -27,10 +29,17 @@ from apiclient.http import MediaIoBaseUpload
 from oauth2client.appengine import StorageByKeyName
 
 from model import Credentials
+from model import Picture
 import util
 import Image
 import imaging
+from google.appengine.ext import ndb
+from google.appengine.ext import blobstore
+from google.appengine.api import files
+from google.appengine.api import users
 
+def picture_key(username):
+    return ndb.Key("Picture", username)
 
 class NotifyHandler(webapp2.RequestHandler):
   """Request Handler for notification pings."""
@@ -66,6 +75,8 @@ class NotifyHandler(webapp2.RequestHandler):
     """Handle timeline notification."""
     for user_action in data.get('userActions', []):
       if user_action.get('type') == 'SHARE':
+        g_user = users.get_current_user()
+        logging.info("User is " + str(g_user))
         # Fetch the timeline item.
         item = self.mirror_service.timeline().get(id=data['itemId']).execute()
         attachments = item.get('attachments', [])
@@ -79,13 +90,33 @@ class NotifyHandler(webapp2.RequestHandler):
               attachment['contentUrl'])
           if resp.status == 200:
             im_data = io.BytesIO(content)
+            im_copy = io.BytesIO(content)
             im = Image.open(im_data)
             cf = imaging.ColorFinder(im)
-            top = imaging.ColorUtil.generate_color_panes(tuple(cf.strategy_enhanced_triad()))
+            top = imaging.ColorUtil.generate_color_panes(tuple(cf.strategy_enhanced_complements()))
             output = StringIO.StringIO()
             top.save(output, format="JPEG")
             contents = io.BytesIO(output.getvalue())
+            contents_copy = io.BytesIO(output.getvalue())
             output.close()
+
+            upload = Picture(parent=picture_key(data['userToken']))
+            upload.owner = str(data['userToken'])
+            file_name = files.blobstore.create(mime_type='image/jpeg')
+            with files.open(file_name, 'a') as f:
+                f.write(im_copy.read())
+            files.finalize(file_name)
+            picture_blob_key = files.blobstore.get_blob_key(file_name)
+            upload.picture = str(picture_blob_key)
+
+            palette_name = files.blobstore.create(mime_type='image/jpeg')
+            with files.open(palette_name, 'a') as f:
+                f.write(contents_copy.read())
+            files.finalize(palette_name)
+            palette_blob_key = files.blobstore.get_blob_key(palette_name)
+            upload.palette = str(palette_blob_key)
+            upload.put()
+
             media = MediaIoBaseUpload(
                 contents, mimetype='image/jpeg',
                 resumable=True)
