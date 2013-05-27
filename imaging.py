@@ -189,8 +189,11 @@ class ColorFinder:
         best_so_far = (0, None)
         for color in colormap.data:
             qual_score = quality(color)
-            pop_score = color[0] / self.pixel_count
+            pop_score = float(color[0]) / float(self.pixel_count)
             total_score = (qual_score * qual_weight) + (pop_score * pop_weight)
+            # print "Qual score went from", qual_score, "to", (qual_score * qual_weight)
+            # print "Pop score went from", pop_score, "to", (pop_score * pop_weight)
+            # print "Total score is", total_score
             if total_score > best_so_far[0]:
                 best_so_far = (total_score, color[1])
         return best_so_far[1]
@@ -204,18 +207,18 @@ class ColorFinder:
             returnable.append(tuple(colormap.data[i][1]))
         return returnable
 
-    def strategy_enhanced_triad(self, colormap=None):
+    def strategy_enhanced_complements(self, complement_scheme="TRIAD", colormap=None):
         if colormap == None:
             colormap = self.conversion
         copied = colormap.pm_copy()
-        cp_color = self.find_quality_popular(ColorQualities.colorful())
+        cp_color = self.find_quality_popular(ColorQualities.colorful(), qual_weight=0.1, pop_weight=0.9)
 
         pal = Palette()
-        idealscheme = pal.produce_colors(cp_color, "TRIAD")
+        idealscheme = pal.produce_colors(cp_color, complement_scheme)
         colorscheme = []
         
         for color in idealscheme:
-            match = self.find_quality_popular(ColorQualities.close(color[0]), colormap=copied)
+            match = self.find_quality_popular(ColorQualities.close(color[0]), colormap=copied, qual_weight=0.2, pop_weight=0.8)
             copied.remove(match)
             colorscheme.append(ColorUtil.convert_to_rgb(match))
                 
@@ -257,5 +260,6 @@ if __name__ == "__main__":
     top = ColorUtil.generate_color_panes(tuple(cf.strategy_top_colors(4)))
     top.show()
     # use the Enhanced Triad heuristic to display a palette
-    et = ColorUtil.generate_color_panes(tuple(cf.strategy_enhanced_triad()))
-    et.show()
+    ColorUtil.generate_color_panes(tuple(cf.strategy_enhanced_complements(complement_scheme="TRIAD"))).show()
+    ColorUtil.generate_color_panes(tuple(cf.strategy_enhanced_complements(complement_scheme="TETRAD"))).show()
+    ColorUtil.generate_color_panes(tuple(cf.strategy_enhanced_complements(complement_scheme="ACC_ANALOG"))).show()
