@@ -29,12 +29,8 @@ from apiclient.http import MediaIoBaseUpload
 from oauth2client.appengine import StorageByKeyName
 
 from model import Credentials
-from model import Picture
 import util
-import Image
-import imaging
-from google.appengine.ext import blobstore
-from google.appengine.api import files
+from image_operator import ImageOperator
 
 
 class NotifyHandler(webapp2.RequestHandler):
@@ -83,36 +79,12 @@ class NotifyHandler(webapp2.RequestHandler):
           resp, content = self.mirror_service._http.request(
               attachment['contentUrl'])
           if resp.status == 200:
-            im_data = io.BytesIO(content)
-            im_copy = io.BytesIO(content)
-            im = Image.open(im_data)
-            cf = imaging.ColorFinder(im)
-            top = imaging.ColorUtil.generate_color_panes(tuple(cf.strategy_enhanced_complements()))
-            output = StringIO.StringIO()
-            top.save(output, format="JPEG")
-            contents = io.BytesIO(output.getvalue())
-            contents_copy = io.BytesIO(output.getvalue())
-            output.close()
-
-            upload = Picture(parent=Picture.picture_key(str(data['userToken'])))
-            upload.owner = str(data['userToken'])
-            file_name = files.blobstore.create(mime_type='image/jpeg')
-            with files.open(file_name, 'a') as f:
-                f.write(im_copy.read())
-            files.finalize(file_name)
-            picture_blob_key = files.blobstore.get_blob_key(file_name)
-            upload.picture = str(picture_blob_key)
-
-            palette_name = files.blobstore.create(mime_type='image/jpeg')
-            with files.open(palette_name, 'a') as f:
-                f.write(contents_copy.read())
-            files.finalize(palette_name)
-            palette_blob_key = files.blobstore.get_blob_key(palette_name)
-            upload.palette = str(palette_blob_key)
-            upload.put()
-
+            # Process the image, put the original & generated palette in the blobstore
+            # then link them together in the datastore
+            palette = ImageOperator.process(str(data['userToken']), content)
+            # Send the generated palette back to the glass
             media = MediaIoBaseUpload(
-                contents, mimetype='image/jpeg',
+                palette, mimetype='image/jpeg',
                 resumable=True)
             body = {
                 'notification': {'level': 'DEFAULT'},
@@ -120,6 +92,7 @@ class NotifyHandler(webapp2.RequestHandler):
             }
             self.mirror_service.timeline().insert(
                 body=body, media_body=media).execute()
+            # Now remove original item shared from the glass timeline
             self.mirror_service.timeline().delete(id=data['itemId']).execute()
           else:
             logging.info('Unable to retrieve attachment: %s', resp.status)
