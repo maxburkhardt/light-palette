@@ -67,7 +67,7 @@ class _BatchCallback(object):
 class MainHandler(webapp2.RequestHandler):
   """Request Handler for the main endpoint."""
 
-  def _render_template(self, message=None):
+  def _render_template(self):
     # """Render the main page template."""
 
     pictures_query = Picture.query(ancestor=Picture.picture_key(str(self.userid))).order(-Picture.date)
@@ -81,10 +81,7 @@ class MainHandler(webapp2.RequestHandler):
   @util.auth_required
   def get(self):
     """Render the main page."""
-    # Get the flash message and delete it.
-    message = memcache.get(key=self.userid)
-    memcache.delete(key=self.userid)
-    self._render_template(message)
+    self._render_template()
 
   @util.auth_required
   def post(self):
